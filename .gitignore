@@ -395,5 +395,3 @@ FodyWeavers.xsd
 # Local History for Visual Studio Code
 .history/
 
-# Dependencies
-node_modules/
