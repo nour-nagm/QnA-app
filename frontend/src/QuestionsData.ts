@@ -70,11 +70,11 @@ export const searchQuestions = async (
   criteria: string,
 ): Promise<QuestionData[]> => {
   await wait(500);
-  return questions.filter(
-    (q) =>
-      q.title.toLowerCase().indexOf(criteria.toLowerCase()) >= 0 ||
-      q.content.toLowerCase().indexOf(criteria.toLowerCase()) >= 0,
-  );
+
+  if (criteria.trim().length < 1) return [] as QuestionData[];
+
+  const re = RegExp(criteria.trim(), 'i');
+  return questions.filter((q) => re.test(q.title) || re.test(q.content));
 };
 
 export interface PostQuestionData {
