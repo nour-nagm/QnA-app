@@ -5,7 +5,6 @@ My practice on **Carl Rippon**'s book *ASP.NET Core 5 and React 2nd*, where I bu
 - .NET 5 (C# 9) 
 - ASP.NET Core
 - React 17
-- Redux
 
 ## Current State
 - 2 projects; 
