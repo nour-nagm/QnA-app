@@ -8,7 +8,7 @@ My practice on **Carl Rippon**'s book *ASP.NET Core 5 and React 2nd edition*, wh
 - Typescript 4
 
 ## Current State
-- 2 projects; 
+- 2 projects
   - React App (with Typescript) as a frontend
     - Configuring Development settings (Typescript, Linting with ESLint, Code Formatting with Prettier)
     - Adding **Emotion** (CSS-in-JS Library) for styling components
