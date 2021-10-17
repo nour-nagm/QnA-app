@@ -65,7 +65,7 @@ namespace QnA.Api.Data
                 .Query<QuestionGetManyResponses>(
                     @"EXEC dbo.Question_GetUnanswered");
         }
-        public QuestionGetSingleResponse PostQuestion(QuestionPostRequest question)
+        public QuestionGetSingleResponse PostQuestion(QuestionPostFullRequest question)
         {
             using var connection = new SqlConnection(connectionString);
             connection.Open();
@@ -132,17 +132,26 @@ namespace QnA.Api.Data
                     @AnswerId = @AnswerId",
                     new { AnswerId = answerId });
         }
-        public AnswerGetResponse PostAnswer(AnswerPostRequest answer)
+        public AnswerGetResponse PostAnswer(int questionId, AnswerPostFullRequest answer)
         {
             using var connection = new SqlConnection(connectionString);
             connection.Open();
 
             return connection.QueryFirst<AnswerGetResponse>(
                 @"EXEC dbo.Answer_Post
-                @QuestionId = @QuestionId, @Content = @Content,
-                @UserId = @UserId, @UserName = @UserName,
+                @QuestionId = @QuestionId,
+                @Content = @Content,
+                @UserId = @UserId,
+                @UserName = @UserName,
                 @Created = @Created",
-                answer);
+                new 
+                {
+                    QuestionId = questionId,
+                    answer.UserId,
+                    answer.UserName,
+                    answer.Content,
+                    answer.Created,
+                });
         }
        
     }

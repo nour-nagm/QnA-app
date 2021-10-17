@@ -22,5 +22,11 @@ My practice on **Carl Rippon**'s book *ASP.NET Core 5 and React 2nd edition*, wh
       - Implementing the database
         - Starting initially with 2 tables (Question, and Answer)
         - Creating store procedures to interact with the database tables.
-      - Adding **Dapper ORM** for mapping SQL queries output to C# objects, thus creating a data access layer using *repository design pattern*.
+      - Adding **Dapper ORM** for mapping SQL queries output to C# objects, thus creating a data access layer using *repository design pattern*, which will be used by the API
       - Adding **DbUp** for managing database migrations using *embedded SQL scripts*.
+      - Creating **REST API** endpoints
+        - Injecting the data repository into the *API controller* 
+        - Implementing a range of controller *action methods* that handle different *HTTP request methods* returning appropriate *responses*.
+        -  *Validating* requests so that we can be sure the data is valid before it reaches the data repository
+        - Ensuring we aren't asking for unnecessary information in the API requests,  preventing potential *security issues* and improving the *usability* of the API 
+

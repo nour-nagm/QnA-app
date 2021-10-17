@@ -70,9 +70,6 @@ export const searchQuestions = async (
   criteria: string,
 ): Promise<QuestionData[]> => {
   await wait(500);
-
-  if (criteria.trim().length < 1) return [] as QuestionData[];
-
   const re = RegExp(criteria.trim(), 'i');
   return questions.filter((q) => re.test(q.title) || re.test(q.content));
 };

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using QnA.Api.Data;
 
 namespace QnA.Api
 {
@@ -21,7 +22,8 @@ namespace QnA.Api
         public void ConfigureServices(IServiceCollection services)
         {
             var connectionString = Configuration.GetConnectionString("DefaultConnection");
-            
+
+            #region DbUp Migration
             EnsureDatabase.For.SqlDatabase(connectionString);
 
             // Create and configure an instance of the DbUp upgrader
@@ -34,10 +36,13 @@ namespace QnA.Api
                 .Build();
 
             // Do a database migration if there are any pending SQL scripts
-            if(upgrader.IsUpgradeRequired())
+            if (upgrader.IsUpgradeRequired())
             {
                 upgrader.PerformUpgrade();
             }
+            #endregion
+
+            services.AddScoped<IDataRepository, DataRepository>();
 
 
             services.AddControllers();
