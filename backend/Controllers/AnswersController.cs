@@ -1,11 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using QnA.Api.Data;
 using QnA.Api.Data.Models;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace QnA.Api.Controllers
 {
@@ -14,12 +10,18 @@ namespace QnA.Api.Controllers
     public class AnswersController : ControllerBase
     {
         private readonly IDataRepository repository;
-        public AnswersController(IDataRepository dataRepository) => this.repository = dataRepository;
+        private readonly IQuestionCache cache;
+        public AnswersController(IDataRepository dataRepository, IQuestionCache cache)
+        {
+            repository = dataRepository;
+            this.cache = cache;
+        }
 
         [HttpPost]
         public ActionResult<AnswerGetResponse> PostAnswer
             (int questionId, AnswerPostRequest answerPostRequest)
         {
+            cache.Remove(questionId);
             return !repository.QuestionExists(questionId) ? NotFound()
                 : repository.PostAnswer(questionId, new AnswerPostFullRequest
                 {

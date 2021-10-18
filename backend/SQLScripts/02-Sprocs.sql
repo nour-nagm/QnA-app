@@ -170,6 +170,29 @@ BEGIN
 END
 GO
 
+CREATE PROC dbo.Question_GetMany_WithPaging
+	(
+	@PageNumber int,
+	@PageSize int
+)
+AS
+BEGIN
+	SELECT QuestionId, Title, Content, UserId, UserName, Created
+	FROM
+		(	SELECT QuestionId, Title, Content, UserId, UserName, Created
+			FROM dbo.Question 
+
+		UNION
+
+			SELECT QuestionId, Title, Content, UserId, UserName, Created
+			FROM dbo.Question 
+			) Sub
+	ORDER BY QuestionId
+	OFFSET @PageSize * (@PageNumber - 1) ROWS
+    FETCH NEXT @PageSize ROWS ONLY
+END
+GO
+
 CREATE PROC dbo.Question_GetMany_WithAnswers
 AS
 BEGIN

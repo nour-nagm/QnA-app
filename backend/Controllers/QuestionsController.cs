@@ -1,10 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using QnA.Api.Data;
 using QnA.Api.Data.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace QnA.Api.Controllers
@@ -14,26 +12,39 @@ namespace QnA.Api.Controllers
     public class QuestionsController : ControllerBase
     {
         private readonly IDataRepository repository;
+        private readonly IQuestionCache cache;
 
-        public QuestionsController(IDataRepository dataRepository) => this.repository = dataRepository;
+        public QuestionsController(IDataRepository dataRepository, IQuestionCache cache)
+        {
+            repository = dataRepository;
+            this.cache = cache;
+        }
 
         #region Get Methods
         [HttpGet]
         public IEnumerable<QuestionGetManyResponses> GetQuestions
-            (string search) => string.IsNullOrEmpty(search) ?
-                repository.GetQuestions() :
-                repository.GetQuestionsBySearch(search);
+            (string search, int page = 1, int pageSize = 20, bool includeAnswers = false)
+        {
+            return string.IsNullOrEmpty(search) ? 
+                repository.GetQuestionsWithPaging(page, pageSize, includeAnswers)
+                : repository.GetQuestionsBySearchWithPaging
+                (search, page, pageSize, includeAnswers);
+        }
 
         [HttpGet("unanswered")]
-        public IEnumerable<QuestionGetManyResponses> GetUnansweredQuestions()
-            => repository.GetUnansweredQuestions();
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetUnansweredQuestions()
+            => await repository.GetUnansweredQuestionsAsync();
 
         [HttpGet("{questionId}")]
         public ActionResult<QuestionGetSingleResponse> GetQuestion(int questionId)
         {
             var question = repository.GetQuestion(questionId);
+            
+            if (question == null)
+                return NotFound();
 
-            return question != null ? question : NotFound();
+            cache.Set(question);
+            return question;
         } 
         #endregion
 
@@ -73,6 +84,8 @@ namespace QnA.Api.Controllers
             questionPutRequest.Content = string.IsNullOrEmpty(questionPutRequest.Content) ?
                 question.Content : questionPutRequest.Content;
 
+            cache.Remove(questionId);
+            
             return repository.PutQuestion(questionId, questionPutRequest);
         }
 

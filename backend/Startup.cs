@@ -44,6 +44,8 @@ namespace QnA.Api
 
             services.AddScoped<IDataRepository, DataRepository>();
 
+            services.AddMemoryCache();
+            services.AddSingleton<IQuestionCache, QuestionCache>();
 
             services.AddControllers();
             services.AddSwaggerGen(c =>
