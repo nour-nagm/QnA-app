@@ -6,5 +6,8 @@ namespace QnA.Api.Data.Models
     {
         [Required]
         public string Content { get; set; }
+
+        [Required]
+        public int? QuestionId { get; set; }
     }
 }

@@ -6,19 +6,19 @@ namespace QnA.Api.Data
 {
     public interface IDataRepository
     {
-        IEnumerable<QuestionGetManyResponses> GetQuestions(bool includeAnswers);
-        IEnumerable<QuestionGetManyResponses> GetQuestionsWithPaging(int pageNumber, int pageSize, bool includeAnswers);
-        IEnumerable<QuestionGetManyResponses> GetQuestionsBySearch(string search, bool includeAnswers);
-        IEnumerable<QuestionGetManyResponses>GetQuestionsBySearchWithPaging(string search, int pageNumber, int pageSize, bool includeAnswers);
-        IEnumerable<QuestionGetManyResponses> GetUnansweredQuestions();
-        Task<IEnumerable<QuestionGetManyResponses>> GetUnansweredQuestionsAsync();
-        QuestionGetSingleResponse GetQuestion(int questionId);
-        bool QuestionExists(int questionId);
-        AnswerGetResponse GetAnswer(int answerId);
-
-        QuestionGetSingleResponse PostQuestion(QuestionPostFullRequest question);
-        QuestionGetSingleResponse PutQuestion(int questionId, QuestionPutRequest question);
-        void DeleteQuestion(int questionId);
-        AnswerGetResponse PostAnswer(int questionId, AnswerPostFullRequest answer);
+        Task<IEnumerable<QuestionGetManyResponses>> GetQuestions();
+        Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsWithAnswers();
+        Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsBySearch(string search);
+        Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsBySearchWithPaging(string search, int pageNumber, int pageSize);
+        Task<IEnumerable<QuestionGetManyResponses>> GetUnansweredQuestions();
+        Task<QuestionGetSingleResponse> GetQuestion(int questionId);
+        Task<bool> QuestionExists(int questionId);
+        Task<AnswerGetResponse> GetAnswer(int answerId);
+        Task<QuestionGetSingleResponse> PostQuestion(QuestionPostFullRequest question);
+        Task<QuestionGetSingleResponse> PutQuestion(int questionId, QuestionPutRequest question);
+      
+        Task DeleteQuestion(int questionId);
+        Task<AnswerGetResponse> PostAnswer(AnswerPostFullRequest answer);
+        Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsWithPaging(int pageNumber, int pageSize);
     }
 }

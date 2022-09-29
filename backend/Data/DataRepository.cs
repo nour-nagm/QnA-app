@@ -6,274 +6,186 @@ using QnA.Api.Data.Models;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System;
 
 namespace QnA.Api.Data
 {
     public class DataRepository : IDataRepository
     {
-        private readonly string connectionString;
+        private readonly string _connectionString;
         public DataRepository(IConfiguration configuration)
         {
-            connectionString = configuration["ConnectionStrings:DefaultConnection"];
+            _connectionString = configuration["ConnectionStrings:DefaultConnection"];
         }
 
-        public QuestionGetSingleResponse GetQuestion(int questionId)
+        public async Task<AnswerGetResponse> GetAnswer(int answerId)
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            // We use the QueryMultiple method in Dapper to execute our two
-            // stored procedures in a single database round trip.The results
-            // are added into a results variable and can be retrieved using
-            // the Read method by passing the appropriate type in the
-            // generic parameter.
-            using GridReader results = connection.QueryMultiple(
-                @"EXEC dbo.Question_GetSingle
-                @QuestionId = @QuestionId;
-                    
-                EXEC dbo.Answer_Get_ByQuestionId
-                @QuestionId = @QuestionId",
-                new { QuestionId = questionId });
-
-            var question = results
-                .Read<QuestionGetSingleResponse>()
-                .FirstOrDefault();
-
-            if (question != null)
+            using (var connection = new SqlConnection(_connectionString))
             {
-                question.Answers = results
-                    .Read<AnswerGetResponse>()
-                    .ToList();
+                await connection.OpenAsync();
+                return await connection.QueryFirstOrDefaultAsync<AnswerGetResponse>(@"EXEC dbo.Answer_Get_ByAnswerId @AnswerId = @AnswerId", new { AnswerId = answerId });
             }
-
-            return question;
         }
-        public IEnumerable<QuestionGetManyResponses> GetQuestions(bool includeAnswers)
-        {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
 
-            // Getting answers in one opend connection using
-            // Question_GetMany_WithAnswers stored procedure returns
-            // tabular data and we require this to be mapped to the
-            // questions - and - answers hierarchical structure we have
-            // in our QuestionGetManyResponse model.
-            if (includeAnswers)
+        public async Task<QuestionGetSingleResponse> GetQuestion(int questionId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
             {
-                var questionDictionary
-                    = new Dictionary<int, QuestionGetManyResponses>();
-
-                // So, Dapper's multi-mapping feature can be used to resolve
-                // the N+1 problem and generally achieve better performance.
-                // We do need to be careful with this approach, though, as
-                // we are requesting a lot of data from the database because
-                // of the duplicate parent records. Processing large amounts
-                // of data in the web server can be inefficient and lead to
-                // a slowdown in the garbage collection process.
-                return connection.Query
-                    <QuestionGetManyResponses,
-                    AnswerGetResponse,
-                    QuestionGetManyResponses>(
-                    @"EXEC dbo.Question_GetMany_WithAnswers",
-                    map: (q, a) =>
-                    {
-                        if (!questionDictionary.TryGetValue(q.QuestionId, out QuestionGetManyResponses question))
-                        {
-                            question = q;
-                            question.Answers = new List<AnswerGetResponse>();
-                            questionDictionary.Add(question.QuestionId, question);
-                        }
-
-                        question.Answers.Add(a);
-                        return question;
-                    }, splitOn: "QuestionId").Distinct().ToList();
-            }
-
-            return connection.Query<QuestionGetManyResponses>(@"EXEC dbo.Question_GetMany");
-
-        }
-        public IEnumerable<QuestionGetManyResponses> GetQuestionsWithPaging(int pageNumber, int pageSize, bool includeAnswers)
-        {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            var questions = connection.Query<QuestionGetManyResponses>(
-                @"EXEC dbo.Question_GetMany_WithPaging
-                @PageNumber = @PageNumber,
-                @PageSize = @PageSize",
-                new
+                await connection.OpenAsync();
+                using (GridReader results = await connection.QueryMultipleAsync(
+                    @"EXEC dbo.Question_GetSingle @QuestionId = @QuestionId; 
+                      EXEC dbo.Answer_Get_ByQuestionId @QuestionId = @QuestionId",
+                    new { QuestionId = questionId }))
                 {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize
-                });
-
-            if (includeAnswers)
-                FillAnswersList(connection, questions);
-            
-            return questions;
-        }
-        public IEnumerable<QuestionGetManyResponses> GetQuestionsBySearch(string search, bool includeAnswers)
-        {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            var questions = connection.Query<QuestionGetManyResponses>(
-                @"EXEC dbo.Question_GetMany_BySearch
-                @Search = @Search",
-                new { Search = search });
-
-            // Getting answers in one opend connection using 
-            // Answer_Get_ByQuestionId stored procedure for each question
-            if (includeAnswers)
-                FillAnswersList(connection, questions);
-
-            return questions;
-        }
-
-        private static void FillAnswersList(SqlConnection connection, IEnumerable<QuestionGetManyResponses> questions)
-        {
-            foreach (var question in questions)
-            {
-                question.Answers = connection.Query<AnswerGetResponse>(
-                    @"EXEC dbo.Answer_Get_ByQuestionId
-                        @QuestionId = @QuestionId",
-                    new { question.QuestionId })
-                    .ToList();
+                    var question = (await results.ReadAsync<QuestionGetSingleResponse>()).FirstOrDefault();
+                    if (question != null)
+                    {
+                        question.Answers = (await results.ReadAsync<AnswerGetResponse>()).ToList();
+                    }
+                    return question;
+                }
             }
         }
 
-        public IEnumerable<QuestionGetManyResponses> GetQuestionsBySearchWithPaging
-            (string search, int pageNumber, int pageSize, bool includeAnswers)
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetQuestions()
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            var questions = connection.Query<QuestionGetManyResponses>(
-                @"EXEC dbo.Question_GetMany_BySearch_WithPaging
-                @Search = @Search,
-                @PageNumber = @PageNumber,
-                @PageSize = @PageSize",
-                new
-                {
-                    Search = search,
-                    PageNumber = pageNumber,
-                    PageSize = pageSize
-                });
-
-            if (includeAnswers)
-                FillAnswersList(connection, questions);
-
-            return questions;
-
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                return await connection.QueryAsync<QuestionGetManyResponses>("EXEC dbo.Question_GetMany");
+            }
         }
 
-        public IEnumerable<QuestionGetManyResponses> GetUnansweredQuestions()
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsWithAnswers()
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
 
-            return connection
-                .Query<QuestionGetManyResponses>(
-                    @"EXEC dbo.Question_GetUnanswered");
+                var questionDictionary = new Dictionary<int, QuestionGetManyResponses>();
+                return (await connection.QueryAsync<QuestionGetManyResponses, AnswerGetResponse, QuestionGetManyResponses>("EXEC dbo.Question_GetMany_WithAnswers",
+                  map: (q, a) =>
+                  {
+                      QuestionGetManyResponses question;
+
+                      if (!questionDictionary.TryGetValue(q.QuestionId, out question))
+                      {
+                          question = q;
+                          question.Answers = new List<AnswerGetResponse>();
+                          questionDictionary.Add(question.QuestionId, question);
+                      }
+                      question.Answers.Add(a);
+                      return question;
+                  },
+                  splitOn: "QuestionId"))
+                  .Distinct()
+                  .ToList();
+            }
         }
-        
-        public QuestionGetSingleResponse PostQuestion(QuestionPostFullRequest question)
+
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsBySearch(string search)
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            var questionId = connection
-                .QueryFirst<int>(
-                    @"EXEC dbo.Question_Post 
-                    @Title = @Title, @Content = @Content, 
-                    @UserId = @UserId, @UserName = @UserName, 
-                    @Created = @Created",
-                    question);
-
-            return GetQuestion(questionId);
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                return await connection.QueryAsync<QuestionGetManyResponses>(@"EXEC dbo.Question_GetMany_BySearch 
+                    @Search = @Search",
+                    new { Search = search });
+            }
         }
-        public QuestionGetSingleResponse PutQuestion(int questionId, QuestionPutRequest question)
+
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsBySearchWithPaging(string search, int pageNumber, int pageSize)
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            connection.Execute(
-                    @"EXEC dbo.Question_Put
-                    @QuestionId = @QuestionId,
-                    @Title = @Title,
-                    @Content = @Content",
-                    new
-                    {
-                        QuestionId = questionId,
-                        question.Title,
-                        question.Content
-                    });
-
-            return GetQuestion(questionId);
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                var parameters = new { Search = search, PageNumber = pageNumber, PageSize = pageSize };
+                return await connection.QueryAsync<QuestionGetManyResponses>(@"EXEC dbo.Question_GetMany_BySearch_WithPaging
+                    @Search = @Search, @PageNumber = @PageNumber, @PageSize = @PageSize",
+                    parameters);
+            }
         }
-        public void DeleteQuestion(int questionId)
-        {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
 
-            connection.Execute(
-                @"EXEC dbo.Question_Delete 
-                @QuestionId = @QuestionId",
-                new { QuestionId = questionId });
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetUnansweredQuestions()
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                return await connection.QueryAsync<QuestionGetManyResponses>("EXEC dbo.Question_GetUnanswered");
+            }
         }
-        public bool QuestionExists(int questionId)
-        {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
 
-            return connection
-                .QueryFirst<bool>(
-                    @"EXEC dbo.Question_Exists 
+        public async Task<bool> QuestionExists(int questionId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                return await connection.QueryFirstAsync<bool>(@"EXEC dbo.Question_Exists 
                     @QuestionId = @QuestionId",
                     new { QuestionId = questionId });
+            }
         }
 
-        public AnswerGetResponse GetAnswer(int answerId)
+        public async Task<QuestionGetSingleResponse> PostQuestion(QuestionPostFullRequest question)
         {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
 
-            return connection
-                .QueryFirstOrDefault<AnswerGetResponse>(
-                    @"EXEC dbo.Answer_Get_ByAnswerId 
-                    @AnswerId = @AnswerId",
-                    new { AnswerId = answerId });
-        }
-        public AnswerGetResponse PostAnswer(int questionId, AnswerPostFullRequest answer)
-        {
-            using var connection = new SqlConnection(connectionString);
-            connection.Open();
-
-            return connection.QueryFirst<AnswerGetResponse>(
-                @"EXEC dbo.Answer_Post
-                @QuestionId = @QuestionId,
-                @Content = @Content,
-                @UserId = @UserId,
-                @UserName = @UserName,
-                @Created = @Created",
-                new
-                {
-                    QuestionId = questionId,
-                    answer.UserId,
-                    answer.UserName,
-                    answer.Content,
-                    answer.Created,
-                });
+                var questionId = await connection.QueryFirstAsync<int>(@"EXEC dbo.Question_Post 
+                    @Title = @Title, @Content = @Content, 
+                    @UserId = @UserId,  @UserName = @UserName, 
+                    @Created = @Created",
+                    question);
+                return await GetQuestion(questionId);
+            }
         }
 
-        public async Task<IEnumerable<QuestionGetManyResponses>> GetUnansweredQuestionsAsync()
+        public async Task<QuestionGetSingleResponse> PutQuestion(int questionId, QuestionPutRequest question)
         {
-            using var connection = new SqlConnection(connectionString);
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                await connection.ExecuteAsync(@"EXEC dbo.Question_Put 
+                    @QuestionId = @QuestionId, @Title = @Title, @Content = @Content",
+                    new { QuestionId = questionId, question.Title, question.Content });
+                return await GetQuestion(questionId);
+            }
+        }
 
-            await connection.OpenAsync();
+        public async Task DeleteQuestion(int questionId)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                await connection.ExecuteAsync(@"EXEC dbo.Question_Delete 
+                    @QuestionId = @QuestionId",
+                    new { QuestionId = questionId });
+            }
+        }
 
-            return await connection.QueryAsync<QuestionGetManyResponses>(
-                @"EXEC dbo.Question_GetUnanswered");
+        public async Task<AnswerGetResponse> PostAnswer(AnswerPostFullRequest answer)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                return await connection.QueryFirstAsync<AnswerGetResponse>(@"EXEC dbo.Answer_Post 
+                    @QuestionId = @QuestionId, @Content = @Content, @UserId = @UserId, @UserName = @UserName, @Created = @Created",
+                    answer);
+            }
+        }
+
+        public async Task<IEnumerable<QuestionGetManyResponses>> GetQuestionsWithPaging(int pageNumber, int pageSize)
+        {
+            using (var connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                var parameters = new {PageNumber = pageNumber, PageSize = pageSize };
+
+                return await connection.QueryAsync<QuestionGetManyResponses>(@"EXEC dbo.Question_GetMany_WithPaging
+                    @PageNumber = @PageNumber, @PageSize = @PageSize",
+                    parameters);
+            }
         }
     }
 }
