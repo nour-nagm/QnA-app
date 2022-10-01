@@ -83,7 +83,8 @@ export const FieldInput = styled.input`
 
 export const FieldTextArea = styled.textarea`
   ${baseFieldCSS}
-  height: 100px;
+  min-height: 100px;
+  resize: vertical;
 `;
 
 export const FieldError = styled.div`
@@ -105,4 +106,8 @@ export const SubmissionSuccess = styled.div`
 export const SubmissionFailure = styled.div`
   margin-top: 10px;
   color: red;
+`;
+
+export const StatusText = styled.div`
+  text-align: center;
 `;

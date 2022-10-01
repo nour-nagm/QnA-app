@@ -34,21 +34,26 @@ export const AskPage = () => {
       title: data.title,
       content: data.content,
       userName: 'Fred',
-      dateCreated: new Date(),
+      created: new Date(),
     });
+
     setSuccessfullySubmitted(result ? true : false);
   };
 
   return (
     <Page title="Ask a question">
-      <form onSubmit={handleSubmit(submitForm)}>
+      <form onSubmit={handleSubmit(submitForm)} id="question">
         <Fieldset disabled={isSubmitting || successfullySubmitted}>
           <FieldContainer>
             <FieldLabel htmlFor="title">Title</FieldLabel>
             <FieldInput
               id="title"
+              name="title"
               type="text"
-              {...register('title', { required: true, minLength: 10 })}
+              ref={register({
+                required: true,
+                minLength: 10,
+              })}
             />
             {errors.title && errors.title.type === 'required' && (
               <FieldError>You must enter the question title</FieldError>
@@ -61,7 +66,11 @@ export const AskPage = () => {
             <FieldLabel htmlFor="content">Content</FieldLabel>
             <FieldTextArea
               id="content"
-              {...(register('content'), { required: true, minLength: 50 })}
+              name="content"
+              ref={register({
+                required: true,
+                minLength: 50,
+              })}
             />
             {errors.content && errors.content.type === 'required' && (
               <FieldError>You must enter the question content</FieldError>
